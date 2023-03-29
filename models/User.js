@@ -45,7 +45,7 @@ const postSchema = new mongoose.Schema({
     type: String,
   },
   media: {
-    type: Buffer,
+    type: String,
   },
   reactions: [reactionSchema],
   comments: [commentSchema],
@@ -92,13 +92,11 @@ const messageSchema = new mongoose.Schema(
 );
 
 const conversationSchema = new mongoose.Schema({
-  praticipents: [
+  participents: [
     {
-      participent: {
-        type: ObjectId,
-        ref: "User",
-      },
-    },
+      type: ObjectId,
+      ref: "User"
+    }
   ],
   messages: [messageSchema],
 });
@@ -120,6 +118,7 @@ const notificationSchema = new mongoose.Schema({
         default:Date.now
     }
 })
+
 const userSchema = new mongoose.Schema({
   name: {
     type: String,
@@ -170,4 +169,14 @@ userSchema.methods.isValidPassword = function (password) {
 };
 
 userSchema.plugin(mongodbErrorHandler);
-module.exports = mongoose.model("User", userSchema);
+const User = mongoose.model("User", userSchema);
+const Post = mongoose.model("Post", postSchema);
+const Conversation = mongoose.model("Conversation", conversationSchema);
+const Notification = mongoose.model("Notification", notificationSchema);
+const Comment = mongoose.model("Comment", commentSchema);
+const Reaction = mongoose.model("Reaction", reactionSchema);
+const Replay = mongoose.model("Replay", replaySchema);
+const Message = mongoose.model("Message", messageSchema);
+
+module.exports = { User, Post, Conversation, Notification, Comment, Reaction, Replay, Message };
+

@@ -1,5 +1,5 @@
 const mongoose = require("mongoose");
-const Message = require('../models/Message');
+const {Message} = require('../models/User');
 exports.getChats = async (req,res)=>{
     let userId = new mongoose.Types.ObjectId(req.user.userid)
    let messages = await  Message.find({$or: [{ sender:userId  }, { reciever: userId }]});

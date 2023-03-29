@@ -2,29 +2,32 @@ const mongoose = require("mongoose");
 const User = mongoose.model("User");
 const multer = require("multer");
 const jimp = require("jimp");
+const { checkUser } = require("./authController");
 
 exports.getUsers = async (req, res) => {
-  const users = await User.find().select("_id name email createdAt updatedAt");
+  const users = await User.find().select("_id name email avatar createdAt updatedAt");
   res.json(users);
 };
 
 exports.getAuthUser = (req, res) => {
   if (!req.isAuthUser) {
-    res.status(403).json({
-      message: "You are unauthenticated. Please sign in or sign up"
+    return res.status(403).send({
+       message: "You are unauthenticated. Please sign in or sign up"
     });
-    return res.redirect("/signin");
+    // return res.redirect("/signin");
   }
-  res.json(req.user);
+  res.json(req.profile);
 };
 
 exports.getUserById = async (req, res, next, id) => {
-  const user = await User.findOne({ _id: id });
+  const user = await User.findOne({ _id: id }).select({password:0});
   req.profile = user;
 
-  const profileId = mongoose.Types.ObjectId(req.profile._id);
+  checkUser(req)
 
-  if (req.user && profileId.equals(req.user._id)) {
+
+  const profileId = mongoose.Types.ObjectId(req.profile?._id);
+  if (req.user && profileId.equals(req.user?._id)) {
     req.isAuthUser = true;
     return next();
   }
@@ -37,7 +40,8 @@ exports.getUserProfile = (req, res) => {
       message: "No user found"
     });
   }
-  res.json(req.profile);
+  const {_id,following,followers,name,email,posts} = req.profile;
+  res.json({_id,following,followers,name,email,posts});
 };
 
 exports.getUserFeed = async (req, res) => {
@@ -108,7 +112,7 @@ exports.addFollowing = async (req, res, next) => {
 
   await User.findOneAndUpdate(
     { _id: req.user._id },
-    { $push: { following: followId } }
+    { $addToSet: { following: followId } }
   );
   next();
 };
@@ -118,7 +122,7 @@ exports.addFollower = async (req, res) => {
 
   const user = await User.findOneAndUpdate(
     { _id: followId },
-    { $push: { followers: req.user._id } },
+    { $addToSet: { followers: req.user._id } },
     { new: true }
   );
   res.json(user);

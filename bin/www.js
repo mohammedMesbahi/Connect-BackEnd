@@ -9,8 +9,10 @@ var debug = require("debug")("project:server");
 var http = require("http");
 var cookie = require("cookie");
 const { verifyToken } = require("../lib/authTools");
-const Message = require("../models/Message");
+
 const mongoose = require("mongoose");
+const {User} = require('../models/User');
+
 /**
  * Get port from environment and store in Express.
  */
@@ -74,9 +76,23 @@ io.of("/messages_notifications").on("connection", (socket) => {
     });
   }
 
+  const message = {
+    sender: "64237fdd09cc29eaadcdf887",
+    receivers: ["642369682e22fa87c33656b6"],
+    content: "hello world",
+    seen: false,
+  };
+
   // if user send an event "message" send it to the corresponding user and stor it in the dataBase
-  socket.on("notification-message", (message) => {
-    message.sender = socket.id;
+  socket.on("notification-message",async (message) => {
+    // is there any conversation in the conversations of this user contains this (reciever and sender)
+    try {
+      const res= await User.exists({ _id:"64237fdd09cc29eaadcdf887" });
+      console.log(res);
+    } catch (error) {
+      console.log(error.message);
+    }
+    /* message.sender = socket.id;
     // save the message to the database
     Message.create({ ...message, sender: socket.id })
       .then((doc) => {
@@ -86,7 +102,7 @@ io.of("/messages_notifications").on("connection", (socket) => {
           .to(plainDoc.sender)
           .emit("notification-message",plainDoc);
       })
-      .catch((err) => console.error(err.message));
+      .catch((err) => console.error(err.message)); */
   });
   socket.on("comment", (comment) => {
     // if the reciever is connected: send him the comment as a notification

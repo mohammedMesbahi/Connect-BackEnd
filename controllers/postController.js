@@ -1,13 +1,14 @@
 const multer = require("multer");
 const jimp = require("jimp");
 const mongoose = require("mongoose");
-const Post =require("../models/Post");
+const { Post, User } = require("../models/User");
+const { checkUser } = require("./authController");
 
 const imageUploadOptions = {
   storage: multer.memoryStorage(),
   limits: {
     // storing images files up to 1mb
-    fileSize: 1024 * 1024 * 1
+    fileSize: 1024 * 1024 * 1,
   },
   fileFilter: (req, file, next) => {
     if (file.mimetype.startsWith("image/")) {
@@ -15,17 +16,17 @@ const imageUploadOptions = {
     } else {
       next(null, false);
     }
-  }
+  },
 };
 
-exports.uploadImage = multer(imageUploadOptions).single("image");
+exports.uploadImage = multer(imageUploadOptions).single("media");
 
 exports.resizeImage = async (req, res, next) => {
   if (!req.file) {
     return next();
   }
   const extension = req.file.mimetype.split("/")[1];
-  req.body.image = `/static/uploads/${
+  req.body.media = `/static/uploads/${
     req.user.name
   }-${Date.now()}.${extension}`;
   const image = await jimp.read(req.file.buffer);
@@ -35,21 +36,23 @@ exports.resizeImage = async (req, res, next) => {
 };
 
 exports.addPost = async (req, res) => {
-  req.body.postedBy = req.user._id;
-  const post = await new Post(req.body).save();
-  await Post.populate(post, {
-    path: "postedBy",
-    select: "_id name avatar"
-  });
+  req.body.owner = req.user.id;
+  const post = new Post(req.body);
+  try {
+    await User.updateOne({ _id: req.user.id }, { $push: { posts: post } });
+  } catch (error) {
+    console.log(error.message);
+  }
   res.json(post);
 };
 
 exports.getPostById = async (req, res, next, id) => {
-  const post = await Post.findOne({ _id: id });
+  checkUser(req);
+  const post = await User.findOne({ _id: req.user.id });
   req.post = post;
 
-  const posterId = mongoose.Types.ObjectId(req.post.postedBy._id);
-  if (req.user && posterId.equals(req.user._id)) {
+  const posterId = mongoose.Types.ObjectId(req.post?.owner);
+  if (req.user && posterId.equals(req.user?._id)) {
     req.isPoster = true;
     return next();
   }
@@ -61,7 +64,7 @@ exports.deletePost = async (req, res) => {
 
   if (!req.isPoster) {
     return res.status(400).json({
-      message: "You are not authorized to perform this action"
+      message: "You are not authorized to perform this action",
     });
   }
   const deletedPost = await Post.findOneAndDelete({ _id });
@@ -70,7 +73,7 @@ exports.deletePost = async (req, res) => {
 
 exports.getPostsByUser = async (req, res) => {
   const posts = await Post.find({ postedBy: req.profile._id }).sort({
-    createdAt: "desc"
+    createdAt: "desc",
   });
   res.json(posts);
 };
@@ -80,7 +83,7 @@ exports.getPostFeed = async (req, res) => {
 
   following.push(_id);
   const posts = await Post.find({ postedBy: { $in: following } }).sort({
-    createdAt: "desc"
+    createdAt: "desc",
   });
   res.json(posts);
 };
@@ -89,7 +92,7 @@ exports.toggleLike = async (req, res) => {
   const { postId } = req.body;
 
   const post = await Post.findOne({ _id: postId });
-  const likeIds = post.likes.map(id => id.toString());
+  const likeIds = post.likes.map((id) => id.toString());
   const authUserId = req.user._id.toString();
   if (likeIds.includes(authUserId)) {
     await post.likes.pull(authUserId);

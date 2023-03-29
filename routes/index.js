@@ -61,7 +61,7 @@ router.get("/api/auth/isAuthenticated", authController.isAuthenticated);
 /**
  * USER ROUTES: /api/users
  */
-router.param("userId", userController.getUserById);
+router.param("userId",userController.getUserById);
 
 router.put(
   "/api/users/follow",
@@ -129,7 +129,7 @@ router.delete(
 );
 
 router.post(
-  "/api/posts/new/:userId",
+  "/api/posts/",
   authController.checkAuth,
   postController.uploadImage,
   catchErrors(postController.resizeImage),

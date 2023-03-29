@@ -7,7 +7,7 @@ exports.validateSignup = (req, res, next) => {
   req.sanitizeBody("name");
   req.sanitizeBody("email");
   req.sanitizeBody("password");
-  req.sanitizeBody("rPassword");
+  // req.sanitizeBody("rPassword");
 
   // Name is non-null and is 4 to 10 characters
   req.checkBody("name", "Enter a name").notEmpty();
@@ -24,7 +24,7 @@ exports.validateSignup = (req, res, next) => {
     .checkBody("password", "Password must be between 4 and 10 characters")
     .isLength({ min: 4, max: 10 });
 
-  req.assert("password", "Passwords do not match").equals(req.body.rPassword);
+  // req.assert("password", "Passwords do not match").equals(req.body.rPassword);
 
   const errors = req.validationErrors();
   if (errors) {
@@ -67,9 +67,10 @@ exports.signin = (req, res, next) => {
         res.status(404).send("this email is not registered");
       } else {
         if (user.isValidPassword(password)) {
+          
           // give him a token
           var token = jwt.sign(
-            { userid: user.id, email: user.email, name: user.name },
+            { _id: user.id, email: user.email, name: user.name,id:user.id },
             process.env.jwtSecret,
             { expiresIn: maxAge }
           );
@@ -94,12 +95,12 @@ exports.signout = (req, res) => {
 
 exports.checkAuth = (req, res, next) => {
   const token = req.cookies.jwt;
-  // check json web token exists & is verified
+
   if (token) {
     jwt.verify(token, process.env.jwtSecret, (err, decodedToken) => {
       if (err) {
         console.log(err.message);
-        return res.redirect("/signin");
+        return res.status(402).send({message: "unAuthorized"});
       } else {
         console.log(decodedToken);
         req.user = decodedToken;
@@ -107,7 +108,7 @@ exports.checkAuth = (req, res, next) => {
       }
     });
   } else {
-    res.redirect("/signin");
+      res.status(401).send({message: "unAuthorized"});
   }
 };
 
@@ -118,13 +119,13 @@ exports.isAuthenticated = (req, res) => {
     jwt.verify(token, process.env.jwtSecret, (err, decodedToken) => {
       if (err) {
         console.log(err.message);
-        return res.send({ state: false });
+        return res.send({ authenticated: false });
       } else {
-        return res.send({ state: true });
+        return res.send({ authenticated: true });
       }
     });
   } else {
-    res.send({ state: false });
+    res.send({ authenticated: false });
   }
 };
 const requireAuth = (req, res, next) => {
@@ -147,23 +148,12 @@ const requireAuth = (req, res, next) => {
   }
 };
 
-const checkUser = (req, res, next) => {
+exports.checkUser  = (req) => {
   const token = req.cookies.jwt;
   if (token) {
-    jwt.verify(token, "net ninja secret", async (err, decodedToken) => {
-      if (err) {
-        res.locals.user = null;
-        req.user = decodedToken;
-        next();
-      } else {
-        let user = await User.findById(decodedToken.id);
-        res.locals.user = user;
-        next();
-      }
+    jwt.verify(token,process.env.jwtSecret,(err, decodedToken) => { 
+      req.user = decodedToken;
     });
-  } else {
-    res.locals.user = null;
-    next();
   }
 };
 
