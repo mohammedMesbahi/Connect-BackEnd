@@ -1,14 +1,14 @@
 const multer = require("multer");
 const jimp = require("jimp");
 const mongoose = require("mongoose");
-const { Post, User } = require("../models/User");
+const { Post, User, LikeReaction, Comment } = require("../models/User");
 const { checkUser } = require("./authController");
 
 const imageUploadOptions = {
   storage: multer.memoryStorage(),
   limits: {
     // storing images files up to 1mb
-    fileSize: 1024 * 1024 * 1,
+    fileSize: 1024 * 1024 * 2,
   },
   fileFilter: (req, file, next) => {
     if (file.mimetype.startsWith("image/")) {
@@ -30,8 +30,8 @@ exports.resizeImage = async (req, res, next) => {
     req.user.name
   }-${Date.now()}.${extension}`;
   const image = await jimp.read(req.file.buffer);
-  await image.resize(750, jimp.AUTO);
-  await image.write(`./${req.body.image}`);
+  await image.resize(720, jimp.AUTO);
+  await image.write(`./${req.body.media}`);
   next();
 };
 
@@ -90,37 +90,97 @@ exports.getPostFeed = async (req, res) => {
 
 exports.toggleLike = async (req, res) => {
   const { postId } = req.body;
+  const userId = req.user.id;
+  const reaction = new LikeReaction({ owner: userId });
 
-  const post = await Post.findOne({ _id: postId });
-  const likeIds = post.likes.map((id) => id.toString());
-  const authUserId = req.user._id.toString();
-  if (likeIds.includes(authUserId)) {
-    await post.likes.pull(authUserId);
-  } else {
-    await post.likes.push(authUserId);
+  try {
+    const post = await User.findOne({ "posts._id": postId });
+    if (!post) {
+      return res.status(404).json({ error: "Post not found" });
+    }
+
+    const userReaction = post.posts
+      .find((p) => p._id.toString() === postId)
+      .reactions.find((r) => r.owner.toString() === userId);
+
+    if (userReaction) {
+      // User has already liked the post, remove the like
+      await User.updateOne(
+        { "posts._id": postId },
+        { $pull: { "posts.$.reactions": { owner: userId } } }
+      );
+    } else {
+      // User hasn't liked the post, add the like
+      await User.updateOne(
+        { "posts._id": postId },
+        { $push: { "posts.$.reactions": reaction } }
+      );
+    }
+
+    res.send({ liked: !userReaction, reaction });
+  } catch (error) {
+    console.log(error.message);
+    res.status(500).json({ error: "Server error" });
   }
-  await post.save();
-  res.json(post);
 };
 
-exports.toggleComment = async (req, res) => {
-  const { comment, postId } = req.body;
-  let operator;
-  let data;
+exports.addComment = async (req, res) => {
+  const { postId, commentText } = req.body;
+  const userId = req.user.id;
+  const comment = new Comment({ owner: userId, commentText: commentText });
 
-  if (req.url.includes("uncomment")) {
-    operator = "$pull";
-    data = { _id: comment._id };
-  } else {
-    operator = "$push";
-    data = { text: comment.text, postedBy: req.user._id };
+  try {
+    const post = await User.findOne({ "posts._id": postId });
+    if (!post) {
+      return res.status(404).json({ error: "Post not found" });
+    }
+
+    await User.updateOne(
+      { "posts._id": postId },
+      { $push: { "posts.$.comments": comment } }
+    );
+
+    res.send(comment);
+  } catch (error) {
+    console.log(error.message);
+    res.status(500).json({ error: "Server error" });
   }
-  const updatedPost = await Post.findOneAndUpdate(
-    { _id: postId },
-    { [operator]: { comments: data } },
-    { new: true }
-  )
-    .populate("postedBy", "_id name avatar")
-    .populate("comments.postedBy", "_id name avatar");
-  res.json(updatedPost);
+};
+
+exports.deleteComment = async (req, res) => {
+  const { commentId } = req.body;
+
+  try {
+    const post = await User.findOne({
+      $or: [
+        { "posts.$.owner": req.user.id },
+        { "comments.owner": req.user.id },
+      ],
+      "posts.comments._id": commentId,
+    });
+    if (!post) {
+      return res.status(404).json({ error: "comment not found" });
+    }
+
+    User.updateOne(
+      {
+        $or: [
+          { "posts.$.owner": req.user.id },
+          { "comments.owner": req.user.id },
+        ],
+        "posts.comments._id": commentId,
+      },
+      { $pull: { "posts.$.comments": { _id: commentId } } }
+    )
+      .then((r) => {
+        res.send({commentId:commentId});
+      })
+      .catch((error) => {
+        console.log(error.message);
+        res.status(500).json({ error: "Server error" });
+      });
+  } catch (error) {
+    console.log(error.message);
+    res.status(500).json({ error: "Server error" });
+  }
 };

@@ -59,7 +59,7 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
 app.use(cookieParser());
 app.use(express.static(path.join(__dirname, "public")));
-app.use(express.static(path.join(__dirname, 'static')))
+app.use("/static",express.static(path.join(__dirname, 'static')))
 /* Express Validator will validate form data sent to the backend */
 app.use(expressValidator());
 

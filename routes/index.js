@@ -101,7 +101,7 @@ router.get(
 router.param("postId", postController.getPostById);
 
 router.put(
-  "/api/posts/like",
+  "/api/posts/toggleLike",
   authController.checkAuth,
   catchErrors(postController.toggleLike)
 );
@@ -114,12 +114,12 @@ router.put(
 router.put(
   "/api/posts/comment",
   authController.checkAuth,
-  catchErrors(postController.toggleComment)
+  catchErrors(postController.addComment)
 );
-router.put(
-  "/api/posts/uncomment",
+router.delete(
+  "/api/posts/comment",
   authController.checkAuth,
-  catchErrors(postController.toggleComment)
+  catchErrors(postController.deleteComment)
 );
 
 router.delete(

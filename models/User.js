@@ -174,9 +174,9 @@ const Post = mongoose.model("Post", postSchema);
 const Conversation = mongoose.model("Conversation", conversationSchema);
 const Notification = mongoose.model("Notification", notificationSchema);
 const Comment = mongoose.model("Comment", commentSchema);
-const Reaction = mongoose.model("Reaction", reactionSchema);
+const LikeReaction = mongoose.model("LikeReaction", reactionSchema);
 const Replay = mongoose.model("Replay", replaySchema);
 const Message = mongoose.model("Message", messageSchema);
 
-module.exports = { User, Post, Conversation, Notification, Comment, Reaction, Replay, Message };
+module.exports = { User, Post, Conversation, Notification, Comment, LikeReaction, Replay, Message };
 
