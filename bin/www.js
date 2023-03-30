@@ -62,6 +62,7 @@ const io = require('socket.io')(server, {
 
 */
 let connectedUsers = [];
+
 // a middleware to authenticate a user
 io.of("/messages_notifications").use((socket, next) => {
   var cookies = cookie.parse(socket.handshake.headers.cookie || "");
@@ -85,23 +86,48 @@ io.of("/messages_notifications").on("connection", (socket) => {
       ConnectedUsers: connectedUsers,
     });
   }
-
-  // if user send an event "message" send it to the corresponding user and stor it in the dataBase
+  /* **
+  // message from the frontend
+  message = {
+    receivers:["mqsdfkljqsmdfkmklqsfdj"],
+    content:"lreem ipusum inlulm "
+    conversationId:"msqldfkjsmqdflkjqs" this proporty may exist or it may not exist
+  }
+*/
+  // if user send an event "message" stor it in the dataBases and send it to the corresponding users
   socket.on("message", async (message) => {
     console.log(message);
     try {
-      let response = await User.exists({
-        conversations: {
-          $elemMatch: {
-            participents: { $size: message.receivers.length +1},
-            participents: {
-              $all: [socket.id, ...message.receivers],
-            },
+      if (message.conversationId && message.conversationId.length) {
+        let _message = new Message({
+          sender: socket.id,
+          receivers: [socket.id, ...message.receivers],
+          content: message.content,
+        });
+        let response1 = await User.updateMany(
+          {
+            "conversations._id": message.conversationId,
           },
-        },
-      });
-
-      if (!response) {
+          {
+            $push: {
+              "conversations.$.messages": _message,
+            },
+          }
+        );
+        console.log(
+          "**************** ******************* A ************* **************"
+        );
+        console.log(
+          "a new message has been added to the conversation specified by the client"
+        );
+        console.log(response1);
+        _message = JSON.parse(JSON.stringify(_message))
+        console.log(_message);
+        io.of("messages_notifications").to(_message.receivers).emit("newMessage",_message)
+        console.log(
+          "**************** ******************* A ************* **************"
+        );
+      } else {
         let _conversation = new Conversation({
           participents: [socket.id, ...message.receivers],
           messages: [
@@ -112,7 +138,8 @@ io.of("/messages_notifications").on("connection", (socket) => {
             }),
           ],
         });
-        response = await User.updateMany(
+
+        let response2 = await User.updateMany(
           {
             _id: { $in: [socket.id, ...message.receivers] },
           },
@@ -122,31 +149,23 @@ io.of("/messages_notifications").on("connection", (socket) => {
             },
           }
         );
-      } else {
-        await User.updateMany(
-          {
-            conversations: {
-              $elemMatch: {
-                participents: { $size:  message.receivers.length +1 },
-                participents: {
-                  $all: [socket.id, ...message.receivers],
-                },
-              },
-            },
-          },
-          {
-            $push: {
-              "conversations.$.messages": new Message({
-                sender: socket.id,
-                receivers: [socket.id, ...message.receivers],
-                content: message.content,
-              }),
-            },
-          }
+
+        console.log(
+          "**************** ******************* B ************* **************"
+        );
+        console.log("a new conversation has been added to all the receivers :");
+        console.log(response2);
+        console.log("conversation : ");
+        _conversation = JSON.parse(JSON.stringify(_conversation))
+        console.log(_conversation);
+        io.of("messages_notifications").to(_conversation.participents).emit("newConversation",_conversation)
+        console.log(
+          "**************** ******************* B ************* **************"
         );
       }
     } catch (error) {
       console.log(error.message);
+      socket.emit("badRequest",{error:error.message})
     }
   });
   socket.on("comment", (comment) => {
@@ -182,7 +201,7 @@ io.of("/messages_notifications").on("connection", (socket) => {
   });
 });
 /* 
-  [connection] - [notification-message] - [notification-comment] - [notification-replay] - [disconnection] - [markAsSeenMessages]
+  [connection] - [message] - [comment] - [replay] - [disconnection] - [markAsSeenMessages]
 */
 
 // *********************************************************** 🤞🤞 ********************************
