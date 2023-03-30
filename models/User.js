@@ -38,7 +38,6 @@ const commentSchema = new mongoose.Schema({
   replays: [replaySchema],
 });
 
-
 const postSchema = new mongoose.Schema({
   owner: ObjectId,
   caption: {
@@ -54,7 +53,6 @@ const postSchema = new mongoose.Schema({
     default: Date.now,
   },
 });
-
 
 const messageSchema = new mongoose.Schema(
   {
@@ -78,44 +76,52 @@ const messageSchema = new mongoose.Schema(
       // unique: true
       // trim: true
     },
-    seen: {
-      type: Boolean,
-      default: false,
-    },
+    seenBy: [
+      {
+        type: ObjectId,
+        ref: "User",
+      },
+    ],
   },
   {
     timestamps: {
       createdAt: true,
       updatedAt: false,
     },
-}
+  }
 );
 
 const conversationSchema = new mongoose.Schema({
-  participents: [{
-    type: mongoose.Schema.Types.ObjectId,
-    ref: 'User'
-  }],
+  participents: [
+    {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
+    },
+  ],
   messages: [messageSchema],
 });
 
 const notificationSchema = new mongoose.Schema({
-    notifier:{
-        type:ObjectId,
-        ref:"User"
+  notifier: {
+    type: ObjectId,
+    ref: "User",
+  },
+  recipients: [
+    {
+      recipient: {
+        type: ObjectId,
+        ref: "User",
+      },
     },
-    recipients:[{recipient:{
-        type:ObjectId,
-        ref:"User"
-    }}],
-    content : {
-        type:String
-    },
-    date:{
-        type:Date,
-        default:Date.now
-    }
-})
+  ],
+  content: {
+    type: String,
+  },
+  date: {
+    type: Date,
+    default: Date.now,
+  },
+});
 
 const userSchema = new mongoose.Schema({
   name: {
@@ -136,7 +142,7 @@ const userSchema = new mongoose.Schema({
   },
   avatar: {
     type: String,
-    default: "/static/images/profile-image.jpg"
+    default: "/static/images/profile-image.jpg",
   },
   posts: [postSchema],
   conversations: [conversationSchema],
@@ -144,16 +150,11 @@ const userSchema = new mongoose.Schema({
   followers: [{ type: ObjectId, ref: "User" }],
 });
 
-
 /* **************************************************** schemas *****************************************************/
 
-
-
 /* **************************************************** methods **************************************************** */
 
-
 /* **************************************************** methods **************************************************** */
-
 
 userSchema.pre("save", function (next) {
   const saltRounds = 10;
@@ -176,5 +177,13 @@ const LikeReaction = mongoose.model("LikeReaction", reactionSchema);
 const Replay = mongoose.model("Replay", replaySchema);
 const Message = mongoose.model("Message", messageSchema);
 
-module.exports = { User, Post, Conversation, Notification, Comment, LikeReaction, Replay, Message };
-
+module.exports = {
+  User,
+  Post,
+  Conversation,
+  Notification,
+  Comment,
+  LikeReaction,
+  Replay,
+  Message,
+};

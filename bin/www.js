@@ -103,6 +103,7 @@ io.of("/messages_notifications").on("connection", (socket) => {
           sender: socket.id,
           receivers: [socket.id, ...message.receivers],
           content: message.content,
+          seenBy: [socket.id],
         });
         let response1 = await User.updateMany(
           {
@@ -121,9 +122,11 @@ io.of("/messages_notifications").on("connection", (socket) => {
           "a new message has been added to the conversation specified by the client"
         );
         console.log(response1);
-        _message = JSON.parse(JSON.stringify(_message))
+        _message = JSON.parse(JSON.stringify(_message));
         console.log(_message);
-        io.of("messages_notifications").to(_message.receivers).emit("newMessage",_message)
+        io.of("messages_notifications")
+          .to(_message.receivers)
+          .emit("newMessage", _message);
         console.log(
           "**************** ******************* A ************* **************"
         );
@@ -135,6 +138,7 @@ io.of("/messages_notifications").on("connection", (socket) => {
               sender: socket.id,
               receivers: [socket.id, ...message.receivers],
               content: message.content,
+              seenBy: [socket.id],
             }),
           ],
         });
@@ -156,16 +160,18 @@ io.of("/messages_notifications").on("connection", (socket) => {
         console.log("a new conversation has been added to all the receivers :");
         console.log(response2);
         console.log("conversation : ");
-        _conversation = JSON.parse(JSON.stringify(_conversation))
+        _conversation = JSON.parse(JSON.stringify(_conversation));
         console.log(_conversation);
-        io.of("messages_notifications").to(_conversation.participents).emit("newConversation",_conversation)
+        io.of("messages_notifications")
+          .to(_conversation.participents)
+          .emit("newConversation", _conversation);
         console.log(
           "**************** ******************* B ************* **************"
         );
       }
     } catch (error) {
       console.log(error.message);
-      socket.emit("badRequest",{error:error.message})
+      socket.emit("badRequest", { error: error.message });
     }
   });
   socket.on("comment", (comment) => {
@@ -180,24 +186,38 @@ io.of("/messages_notifications").on("connection", (socket) => {
     });
   });
 
-  socket.on("markAsSeenMessages", (messages) => {
-    let messagesId = messages.map((message) => {
-      return new mongoose.Types.ObjectId(message._id);
-    });
-    if (messagesId.length) {
-      Message.updateMany(
+  socket.on("markAsSeenMessages", async (data) => {
+    console.log(data);
+    try {
+      let response = await User.updateMany(
         {
-          _id: {
-            $in: messages,
-          },
+          "conversations._id": data.conversationId,
+          "conversations.messages._id": { $in: data.messages },
         },
-        { $set: { seen: true } }
-      )
-        .then((seenMessages) => {
-          socket.emit("seenMessages", messages);
-        })
-        .catch(console.log);
+        { $addToSet: { "conversations.$[t].messages.$[l].seenBy": socket.id } },
+        { arrayFilters: [{ "t._id":data.conversationId }, { "l._id": { $in: [...data.messages] } }] }
+      );
+
+      console.log(response);
+    } catch (error) {
+      console.log(error.message);
     }
+
+    /* try {
+      let response = await User.updateMany(
+        {
+          "conversations._id": data.conversationId,
+        },
+        { $addToSet: { "conversations.$[message].seenBy": socket.id } },
+        { arrayFilters: [{ "message._id": { $in: data.messages } }] }
+      );
+      console.log(response);
+      if (response.matchedCount === 0) {
+        console.log("No documents were matched for the update operation");
+      }
+    } catch (error) {
+      console.log(error.message)
+    } */
   });
 });
 /* 
