@@ -11,7 +11,17 @@ var cookie = require("cookie");
 const { verifyToken } = require("../lib/authTools");
 
 const mongoose = require("mongoose");
-const {User} = require('../models/User');
+
+const {
+  User,
+  Post,
+  Conversation,
+  Notification,
+  Comment,
+  LikeReaction,
+  Replay,
+  Message,
+} = require("../models/User");
 
 /**
  * Get port from environment and store in Express.
@@ -58,7 +68,7 @@ io.of("/messages_notifications").use((socket, next) => {
   verifyToken(cookies.jwt)
     .then((user) => {
       socket.user = user;
-      socket.id = user.userid;
+      socket.id = user.id;
       next();
     })
     .catch((err) => {
@@ -67,7 +77,7 @@ io.of("/messages_notifications").use((socket, next) => {
 });
 
 // on each connection
-//1 - update the list of connected users and send it to other users
+//1 - update the list of connected users and send it; to other users
 io.of("/messages_notifications").on("connection", (socket) => {
   if (!connectedUsers.find((user) => user == socket.id)) {
     connectedUsers.push(socket.id);
@@ -76,33 +86,68 @@ io.of("/messages_notifications").on("connection", (socket) => {
     });
   }
 
-  const message = {
-    sender: "64237fdd09cc29eaadcdf887",
-    receivers: ["642369682e22fa87c33656b6"],
-    content: "hello world",
-    seen: false,
-  };
-
   // if user send an event "message" send it to the corresponding user and stor it in the dataBase
-  socket.on("notification-message",async (message) => {
-    // is there any conversation in the conversations of this user contains this (reciever and sender)
+  socket.on("message", async (message) => {
+    console.log(message);
     try {
-      const res= await User.exists({ _id:"64237fdd09cc29eaadcdf887" });
-      console.log(res);
+      let response = await User.exists({
+        conversations: {
+          $elemMatch: {
+            participents: { $size: message.receivers.length +1},
+            participents: {
+              $all: [socket.id, ...message.receivers],
+            },
+          },
+        },
+      });
+
+      if (!response) {
+        let _conversation = new Conversation({
+          participents: [socket.id, ...message.receivers],
+          messages: [
+            new Message({
+              sender: socket.id,
+              receivers: [socket.id, ...message.receivers],
+              content: message.content,
+            }),
+          ],
+        });
+        response = await User.updateMany(
+          {
+            _id: { $in: [socket.id, ...message.receivers] },
+          },
+          {
+            $push: {
+              conversations: _conversation,
+            },
+          }
+        );
+      } else {
+        await User.updateMany(
+          {
+            conversations: {
+              $elemMatch: {
+                participents: { $size:  message.receivers.length +1 },
+                participents: {
+                  $all: [socket.id, ...message.receivers],
+                },
+              },
+            },
+          },
+          {
+            $push: {
+              "conversations.$.messages": new Message({
+                sender: socket.id,
+                receivers: [socket.id, ...message.receivers],
+                content: message.content,
+              }),
+            },
+          }
+        );
+      }
     } catch (error) {
       console.log(error.message);
     }
-    /* message.sender = socket.id;
-    // save the message to the database
-    Message.create({ ...message, sender: socket.id })
-      .then((doc) => {
-        const plainDoc = JSON.parse(JSON.stringify(doc));
-        io.of("/messages_notifications")
-          .to(plainDoc.reciever)
-          .to(plainDoc.sender)
-          .emit("notification-message",plainDoc);
-      })
-      .catch((err) => console.error(err.message)); */
   });
   socket.on("comment", (comment) => {
     // if the reciever is connected: send him the comment as a notification

@@ -64,7 +64,7 @@ const messageSchema = new mongoose.Schema(
       // required: true
       // unique: true
     },
-    recievers: [
+    receivers: [
       {
         type: ObjectId,
         ref: "User",
@@ -92,12 +92,10 @@ const messageSchema = new mongoose.Schema(
 );
 
 const conversationSchema = new mongoose.Schema({
-  participents: [
-    {
-      type: ObjectId,
-      ref: "User"
-    }
-  ],
+  participents: [{
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User'
+  }],
   messages: [messageSchema],
 });
 
