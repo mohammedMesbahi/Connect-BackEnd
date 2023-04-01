@@ -87,6 +87,57 @@ exports.getPostFeed = async (req, res) => {
   });
   res.json(posts);
 };
+exports.getPosts = async (req, res) => {
+  try {
+    let ArrayOfpostsArray = await User.find({}, { _id: 0, posts: 1 })
+      .populate({
+        path: "posts",
+        populate: [
+          {
+            path: "owner",
+            select: "name avatar",
+          },
+          {
+            path: "reactions",
+            populate: {
+              path: "owner",
+              select: "name avatar",
+            },
+          },
+          {
+            path: "comments",
+            populate: [{
+              path: "owner",
+              select: "name avatar",
+            },
+            {
+              path:"replays",
+              populate:{
+                path:"owner",
+                select:"name avatar"
+              }
+            }
+          ]
+          },
+        ],
+      })
+      .lean();
+    let postsArray = [];
+
+    ArrayOfpostsArray.forEach((obj) => {
+      obj.posts.forEach((post) => {
+        postsArray.push(post);
+      });
+    });
+    postsArray.sort((a, b) => {
+      return new Date(b.date) - new Date(a.date);
+    });
+    res.status(200).json(postsArray);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: "Server error" });
+  }
+};
 
 exports.toggleLike = async (req, res) => {
   const { postId } = req.body;
@@ -173,7 +224,7 @@ exports.deleteComment = async (req, res) => {
       { $pull: { "posts.$.comments": { _id: commentId } } }
     )
       .then((r) => {
-        res.send({commentId:commentId});
+        res.send({ commentId: commentId });
       })
       .catch((error) => {
         console.log(error.message);

@@ -36,7 +36,6 @@ exports.validateSignup = (req, res, next) => {
 
 exports.signup = async (req, res) => {
   /* ***************** */
-
   if (req.file) {
     const extension = req.file.mimetype.split("/")[1];
     req.body.avatar = `/static/uploads/avatars/${Date.now()}.${extension}`;
@@ -44,19 +43,22 @@ exports.signup = async (req, res) => {
     await image.resize(250, jimp.AUTO);
     await image.write(`./${req.body.avatar}`);
   }
-
   /* **************** */
-  const { name, email, password,avatar } = req.body;
+  const { name, email, password, avatar } = req.body;
   // avatar = avatar.length ? avatar : "/static/images/profile-image.jpg";
-  console.log(req.body);
-  User.create({ name, email, password, avatar})
-    .then((user) => {
-      res.json(user);
-    })
-    .catch((err) => {
-      const errors = handleErrors(err);
-      res.status(400).json({ errors });
-    });
+  try {
+    User.create({ name, email, password, avatar })
+      .then((user) => {
+        res.send({message:"success"});
+      })
+      .catch((err) => {
+        const errors = handleErrors(err);
+        res.status(400).json({ errors:errors });
+      });
+  } catch (error) {
+    console.log(error.message);
+    res.status(500).send({ error: error.message });
+  }
 };
 
 exports.signin = (req, res, next) => {
@@ -64,18 +66,17 @@ exports.signin = (req, res, next) => {
   User.findOne({ email: email })
     .then((user) => {
       if (!user) {
-        res.status(404).send("this email is not registered");
+        return res.status(404).send("this email is not registered");
       } else {
         if (user.isValidPassword(password)) {
-          
           // give him a token
           var token = jwt.sign(
-            { _id: user.id, email: user.email, name: user.name,id:user.id },
+            { _id: user.id, email: user.email, name: user.name, id: user.id },
             process.env.jwtSecret,
             { expiresIn: maxAge }
           );
           res.cookie("jwt", token, { httpOnly: true, maxAge: maxAge * 1000 });
-          res.status(201).json({ user: user._id });
+          return res.status(201).json(user);
         } else {
           res.status(403).send("wrong cridentials");
         }
@@ -83,7 +84,7 @@ exports.signin = (req, res, next) => {
     })
     .catch((err) => {
       const errors = handleErrors(err);
-      res.status(400).json({ errors });
+      res.status(400).json({ errors:errors });
     });
 };
 
@@ -100,7 +101,7 @@ exports.checkAuth = (req, res, next) => {
     jwt.verify(token, process.env.jwtSecret, (err, decodedToken) => {
       if (err) {
         console.log(err.message);
-        return res.status(402).send({message: "unAuthorized"});
+        return res.status(402).send({ message: "unAuthorized" });
       } else {
         console.log(decodedToken);
         req.user = decodedToken;
@@ -108,7 +109,7 @@ exports.checkAuth = (req, res, next) => {
       }
     });
   } else {
-      res.status(401).send({message: "unAuthorized"});
+    res.status(401).send({ message: "unAuthorized" });
   }
 };
 
@@ -148,10 +149,10 @@ const requireAuth = (req, res, next) => {
   }
 };
 
-exports.checkUser  = (req) => {
+exports.checkUser = (req) => {
   const token = req.cookies.jwt;
   if (token) {
-    jwt.verify(token,process.env.jwtSecret,(err, decodedToken) => { 
+    jwt.verify(token, process.env.jwtSecret, (err, decodedToken) => {
       req.user = decodedToken;
     });
   }
@@ -161,21 +162,21 @@ const maxAge = 5 * 24 * 60 * 60;
 // handle errors
 const handleErrors = (err) => {
   console.log(err.message, err.code);
-  let errors = { email: "", password: "" };
+  let errors = { email: ""};
 
   // incorrect email
   if (err.message === "incorrect email") {
-    errors.email = "That email is not registered";
+    errors.email = "The email address is already in use, please choose another one or log in";
   }
 
   // incorrect password
   if (err.message === "incorrect password") {
-    errors.password = "That password is incorrect";
+    errors.password = "the password is incorrect";
   }
 
   // duplicate email error
   if (err.code === 11000) {
-    errors.email = "that email is already registered";
+    errors.email = "The email address is already in use, please choose another one or log in";
     return errors;
   }
 

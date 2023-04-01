@@ -48,7 +48,7 @@ const postSchema = new mongoose.Schema({
   },
   reactions: [reactionSchema],
   comments: [commentSchema],
-  data: {
+  date: {
     type: Date,
     default: Date.now,
   },
