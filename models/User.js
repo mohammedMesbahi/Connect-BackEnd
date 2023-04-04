@@ -22,6 +22,10 @@ const replaySchema = new mongoose.Schema({
   replayText: {
     type: String,
   },
+  date: {
+    type: Date,
+    default: Date.now,
+  },
 });
 const commentSchema = new mongoose.Schema({
   owner: {
@@ -54,42 +58,38 @@ const postSchema = new mongoose.Schema({
   },
 });
 
-const messageSchema = new mongoose.Schema(
-  {
-    sender: {
+const messageSchema = new mongoose.Schema({
+  sender: {
+    type: ObjectId,
+    ref: "User",
+    // required: true
+    // unique: true
+  },
+  receivers: [
+    {
       type: ObjectId,
       ref: "User",
       // required: true
       // unique: true
     },
-    receivers: [
-      {
-        type: ObjectId,
-        ref: "User",
-        // required: true
-        // unique: true
-      },
-    ],
-    content: {
-      type: String,
-      required: true,
-      // unique: true
-      // trim: true
-    },
-    seenBy: [
-      {
-        type: ObjectId,
-        ref: "User",
-      },
-    ],
+  ],
+  content: {
+    type: String,
+    required: true,
+    // unique: true
+    // trim: true
   },
-  {
-    timestamps: {
-      createdAt: true,
-      updatedAt: false,
+  seenBy: [
+    {
+      type: ObjectId,
+      ref: "User",
     },
-  }
-);
+  ],
+  date: {
+    type: Date,
+    default: Date.now,
+  },
+});
 
 const conversationSchema = new mongoose.Schema({
   participents: [
@@ -99,6 +99,10 @@ const conversationSchema = new mongoose.Schema({
     },
   ],
   messages: [messageSchema],
+  date: {
+    type: Date,
+    default: Date.now,
+  },
 });
 
 const notificationSchema = new mongoose.Schema({
@@ -108,14 +112,15 @@ const notificationSchema = new mongoose.Schema({
   },
   recipients: [
     {
-      recipient: {
-        type: ObjectId,
-        ref: "User",
-      },
+      type: ObjectId,
+      ref: "User",
     },
   ],
-  content: {
+  notificationContent: {
     type: String,
+  },
+  url:{
+    type:String
   },
   date: {
     type: Date,

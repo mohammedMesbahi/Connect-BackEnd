@@ -2,6 +2,7 @@ const mongoose = require("mongoose");
 const User = mongoose.model("User");
 const jwt = require("jsonwebtoken");
 const jimp = require("jimp");
+const bcrypt = require("bcrypt");
 
 exports.validateSignup = (req, res, next) => {
   req.sanitizeBody("name");
@@ -49,11 +50,11 @@ exports.signup = async (req, res) => {
   try {
     User.create({ name, email, password, avatar })
       .then((user) => {
-        res.send({message:"success"});
+        res.send({ message: "success" });
       })
       .catch((err) => {
         const errors = handleErrors(err);
-        res.status(400).json({ errors:errors });
+        res.status(400).json({ errors: errors });
       });
   } catch (error) {
     console.log(error.message);
@@ -63,7 +64,7 @@ exports.signup = async (req, res) => {
 
 exports.signin = (req, res, next) => {
   const { email, password } = req.body;
-  User.findOne({ email: email })
+  User.findOne({ email: email }).select("name email avatar password following followers")
     .then((user) => {
       if (!user) {
         return res.status(404).send("this email is not registered");
@@ -84,7 +85,7 @@ exports.signin = (req, res, next) => {
     })
     .catch((err) => {
       const errors = handleErrors(err);
-      res.status(400).json({ errors:errors });
+      res.status(400).json({ errors: errors });
     });
 };
 
@@ -103,7 +104,6 @@ exports.checkAuth = (req, res, next) => {
         console.log(err.message);
         return res.status(402).send({ message: "unAuthorized" });
       } else {
-        console.log(decodedToken);
         req.user = decodedToken;
         return next();
       }
@@ -162,11 +162,12 @@ const maxAge = 5 * 24 * 60 * 60;
 // handle errors
 const handleErrors = (err) => {
   console.log(err.message, err.code);
-  let errors = { email: ""};
+  let errors = { email: "" };
 
   // incorrect email
   if (err.message === "incorrect email") {
-    errors.email = "The email address is already in use, please choose another one or log in";
+    errors.email =
+      "The email address is already in use, please choose another one or log in";
   }
 
   // incorrect password
@@ -176,7 +177,8 @@ const handleErrors = (err) => {
 
   // duplicate email error
   if (err.code === 11000) {
-    errors.email = "The email address is already in use, please choose another one or log in";
+    errors.email =
+      "The email address is already in use, please choose another one or log in";
     return errors;
   }
 

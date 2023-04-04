@@ -30,20 +30,30 @@ exports.resizeImage = async (req, res, next) => {
     req.user.name
   }-${Date.now()}.${extension}`;
   const image = await jimp.read(req.file.buffer);
-  await image.resize(720, jimp.AUTO);
-  await image.write(`./${req.body.media}`);
+  image.resize(420, jimp.AUTO);
+  image.write(`./${req.body.media}`);
   next();
 };
 
 exports.addPost = async (req, res) => {
-  req.body.owner = req.user.id;
-  const post = new Post(req.body);
-  try {
-    await User.updateOne({ _id: req.user.id }, { $push: { posts: post } });
-  } catch (error) {
-    console.log(error.message);
+  console.log(req.body);
+  if (req.body.caption || req.body.media) {
+    let post = new Post({
+      owner: req.user.id,
+      caption:req.body.caption,
+      media:req.body.media
+    });
+    try {
+      await User.updateOne({ _id: req.user.id }, { $push: { posts: post } });
+      res.send(post);
+    } catch (error) {
+      console.log(error.message);
+      return res.status(500).send({message:error.message})
+    }
+  } else {
+    return res.status(400).send({message:"provide at least one field"})
   }
-  res.json(post);
+
 };
 
 exports.getPostById = async (req, res, next, id) => {
@@ -101,23 +111,24 @@ exports.getPosts = async (req, res) => {
             path: "reactions",
             populate: {
               path: "owner",
-              select: "name avatar",
+              select: "name avatar _id",
             },
           },
           {
             path: "comments",
-            populate: [{
-              path: "owner",
-              select: "name avatar",
-            },
-            {
-              path:"replays",
-              populate:{
-                path:"owner",
-                select:"name avatar"
-              }
-            }
-          ]
+            populate: [
+              {
+                path: "owner",
+                select: "name avatar _id",
+              },
+              {
+                path: "replays",
+                populate: {
+                  path: "owner",
+                  select: "name avatar _id",
+                },
+              },
+            ],
           },
         ],
       })
@@ -167,7 +178,8 @@ exports.toggleLike = async (req, res) => {
         { $push: { "posts.$.reactions": reaction } }
       );
     }
-
+    // let r = await User.findOne({ "posts._id": postId ,"posts.reactions._id": reaction._id })
+    await reaction.populate({path:'owner',select:'avatar name _id'});
     res.send({ liked: !userReaction, reaction });
   } catch (error) {
     console.log(error.message);
@@ -190,8 +202,8 @@ exports.addComment = async (req, res) => {
       { "posts._id": postId },
       { $push: { "posts.$.comments": comment } }
     );
-
-    res.send(comment);
+    await comment.populate({path:'owner',select:'name avatar _id'})
+    res.send({postId,comment});
   } catch (error) {
     console.log(error.message);
     res.status(500).json({ error: "Server error" });

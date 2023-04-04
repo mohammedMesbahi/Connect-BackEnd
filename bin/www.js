@@ -126,7 +126,10 @@ io.of("/messages_notifications").on("connection", (socket) => {
         console.log(_message);
         io.of("messages_notifications")
           .to(_message.receivers)
-          .emit("newMessage", _message);
+          .emit("newMessage", {
+            conversationId: message.conversationId,
+            message: _message,
+          });
         console.log(
           "**************** ******************* A ************* **************"
         );
@@ -160,10 +163,12 @@ io.of("/messages_notifications").on("connection", (socket) => {
         console.log("a new conversation has been added to all the receivers :");
         console.log(response2);
         console.log("conversation : ");
+        let participents = JSON.parse(JSON.stringify(_conversation.participents));
+        await _conversation.populate({path:'participents', select:"name avatar email"})
         _conversation = JSON.parse(JSON.stringify(_conversation));
         console.log(_conversation);
         io.of("messages_notifications")
-          .to(_conversation.participents)
+          .to(participents)
           .emit("newConversation", _conversation);
         console.log(
           "**************** ******************* B ************* **************"
@@ -187,18 +192,32 @@ io.of("/messages_notifications").on("connection", (socket) => {
   });
 
   socket.on("markAsSeenMessages", async (data) => {
-    console.log(data);
     try {
-      let response = await User.updateMany(
+      let r1 = await User.updateMany(
         {
           "conversations._id": data.conversationId,
           "conversations.messages._id": { $in: data.messages },
         },
         { $addToSet: { "conversations.$[t].messages.$[l].seenBy": socket.id } },
-        { arrayFilters: [{ "t._id":data.conversationId }, { "l._id": { $in: [...data.messages] } }] }
+        {
+          arrayFilters: [
+            { "t._id": data.conversationId },
+            { "l._id": { $in: [...data.messages] } },
+          ],
+        }
       );
-
-      console.log(response);
+      if (r1.modifiedCount) {
+        let peopleWhoMustUpdateTheirLocalStorage = await User.find({
+          "conversations._id": data.conversationId,
+          "conversations.messages._id": { $in: data.messages },
+        })
+          .select("_id")
+          .lean();
+        let a =[];
+        peopleWhoMustUpdateTheirLocalStorage.forEach(e => a.push(JSON.parse(JSON.stringify(e._id))))
+        data.seenBy = socket.id;
+        io.of('/messages_notifications').to(a).emit("newSeenMessages", data);
+      }
     } catch (error) {
       console.log(error.message);
     }
@@ -219,6 +238,27 @@ io.of("/messages_notifications").on("connection", (socket) => {
       console.log(error.message)
     } */
   });
+
+  /** notifications */
+
+  socket.on("notification",(notification) => {
+    let newNotification = new Notification({
+      notifier:notification.notifier,
+      recipients:notification.recipients,
+      notificationContent:notification.notificationContent,
+      url:`/feed/posts/${notification.postId}`,
+    });
+    newNotification.save();
+
+    newNotification.populate({path:'notifier',select:'name avatar _id'})
+    .then(newN => {
+      io.of('/messages_notifications').to(notification.recipients).emit('newNotification',newN);
+    })
+    .catch(error => {
+      console.log(error.message);
+    })
+    
+  })
 });
 /* 
   [connection] - [message] - [comment] - [replay] - [disconnection] - [markAsSeenMessages]

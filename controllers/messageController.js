@@ -1,7 +1,14 @@
 const mongoose = require("mongoose");
-const {Message} = require('../models/User');
-exports.getChats = async (req,res)=>{
-    let userId = new mongoose.Types.ObjectId(req.user.userid)
-   let messages = await  Message.find({$or: [{ sender:userId  }, { reciever: userId }]});
-   res.send(messages);
+const {User} = require('../models/User');
+exports.getConversations = async (req,res)=>{
+   let response = await  User.find({_id:req.user._id}).populate({
+    path:"conversations",
+    populate:[{
+      path: "participents",
+      select:"name avatar"
+    }
+    ]
+  }).select("conversations -_id").lean();
+  let a = [...response[0].conversations]
+   res.send(a);
 }

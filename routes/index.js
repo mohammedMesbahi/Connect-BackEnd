@@ -144,5 +144,5 @@ router.get("/api/posts/feed/:userId", catchErrors(postController.getPostFeed));
 /**
  * MESSAGE ROUTES: /api/messages
  */
-router.get("/api/messages/allMessages",authController.checkAuth,catchErrors(messageController.getChats));
+router.get("/api/messages/conversations",authController.checkAuth,catchErrors(messageController.getConversations));
 module.exports = router;
