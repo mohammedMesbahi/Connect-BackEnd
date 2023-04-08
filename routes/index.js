@@ -8,7 +8,7 @@ const authController = require("../controllers/authController");
 const userController = require("../controllers/userController");
 const postController = require("../controllers/postController");
 const messageController = require("../controllers/messageController");
-
+const notificationController = require('../controllers/notificationController')
 const multer = require('multer');
 const upload = multer({ storage: multer.memoryStorage() });
 
@@ -121,6 +121,8 @@ router.delete(
   authController.checkAuth,
   catchErrors(postController.deleteComment)
 );
+router.get('/api/posts/comments/:id',
+authController.checkAuth,catchErrors(postController.getComment));
 
 router.delete(
   "/api/posts/:postId",
@@ -145,4 +147,10 @@ router.get("/api/posts/feed/:userId", catchErrors(postController.getPostFeed));
  * MESSAGE ROUTES: /api/messages
  */
 router.get("/api/messages/conversations",authController.checkAuth,catchErrors(messageController.getConversations));
+
+/**
+ * NOTIFICATIONS ROUTES: /api/notifications
+ */
+router.get("/api/notifications",authController.checkAuth,catchErrors(notificationController.getNotifications));
+
 module.exports = router;

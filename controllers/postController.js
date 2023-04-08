@@ -26,9 +26,8 @@ exports.resizeImage = async (req, res, next) => {
     return next();
   }
   const extension = req.file.mimetype.split("/")[1];
-  req.body.media = `/static/uploads/${
-    req.user.name
-  }-${Date.now()}.${extension}`;
+  req.body.media = `/static/uploads/${req.user.name
+    }-${Date.now()}.${extension}`;
   const image = await jimp.read(req.file.buffer);
   image.resize(420, jimp.AUTO);
   image.write(`./${req.body.media}`);
@@ -40,18 +39,18 @@ exports.addPost = async (req, res) => {
   if (req.body.caption || req.body.media) {
     let post = new Post({
       owner: req.user.id,
-      caption:req.body.caption,
-      media:req.body.media
+      caption: req.body.caption,
+      media: req.body.media
     });
     try {
       await User.updateOne({ _id: req.user.id }, { $push: { posts: post } });
       res.send(post);
     } catch (error) {
       console.log(error.message);
-      return res.status(500).send({message:error.message})
+      return res.status(500).send({ message: error.message })
     }
   } else {
-    return res.status(400).send({message:"provide at least one field"})
+    return res.status(400).send({ message: "provide at least one field" })
   }
 
 };
@@ -93,7 +92,7 @@ exports.getPostFeed = async (req, res) => {
 
   following.push(_id);
   const posts = await Post.find({ postedBy: { $in: following } }).sort({
-    createdAt: "desc",
+    date: 1,
   });
   res.json(posts);
 };
@@ -179,7 +178,7 @@ exports.toggleLike = async (req, res) => {
       );
     }
     // let r = await User.findOne({ "posts._id": postId ,"posts.reactions._id": reaction._id })
-    await reaction.populate({path:'owner',select:'avatar name _id'});
+    await reaction.populate({ path: 'owner', select: 'avatar name _id' });
     res.send({ liked: !userReaction, reaction });
   } catch (error) {
     console.log(error.message);
@@ -202,8 +201,8 @@ exports.addComment = async (req, res) => {
       { "posts._id": postId },
       { $push: { "posts.$.comments": comment } }
     );
-    await comment.populate({path:'owner',select:'name avatar _id'})
-    res.send({postId,comment});
+    await comment.populate({ path: 'owner', select: 'name avatar _id' })
+    res.send({ postId, comment });
   } catch (error) {
     console.log(error.message);
     res.status(500).json({ error: "Server error" });
@@ -247,3 +246,17 @@ exports.deleteComment = async (req, res) => {
     res.status(500).json({ error: "Server error" });
   }
 };
+exports.getComment =  async (req, res) => {
+  const { id } = req.params;
+  console.log(req.params);
+  try {
+    const comment = await User.findOne({ 'posts.comments._id': id }, { 'posts.comments.$': 1 }).populate({path:'posts.comments.owner',select:"name email avatar"});
+    if (!comment) {
+      return res.status(404).json({ message: 'Comment not found' });
+    }
+    res.json(comment.posts[0].comments[0]);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: 'Server Error' });
+  }
+}

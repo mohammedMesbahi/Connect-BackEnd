@@ -164,7 +164,8 @@ io.of("/messages_notifications").on("connection", (socket) => {
         console.log(response2);
         console.log("conversation : ");
         let participents = JSON.parse(JSON.stringify(_conversation.participents));
-        await _conversation.populate({path:'participents', select:"name avatar email"})
+        console.log(participents);
+        await _conversation.populate({ path: 'participents', select: "name avatar email" })
         _conversation = JSON.parse(JSON.stringify(_conversation));
         console.log(_conversation);
         io.of("messages_notifications")
@@ -213,7 +214,7 @@ io.of("/messages_notifications").on("connection", (socket) => {
         })
           .select("_id")
           .lean();
-        let a =[];
+        let a = [];
         peopleWhoMustUpdateTheirLocalStorage.forEach(e => a.push(JSON.parse(JSON.stringify(e._id))))
         data.seenBy = socket.id;
         io.of('/messages_notifications').to(a).emit("newSeenMessages", data);
@@ -241,23 +242,29 @@ io.of("/messages_notifications").on("connection", (socket) => {
 
   /** notifications */
 
-  socket.on("notification",(notification) => {
+  socket.on("notification", (notification) => {
     let newNotification = new Notification({
-      notifier:notification.notifier,
-      recipients:notification.recipients,
-      notificationContent:notification.notificationContent,
-      url:`/feed/posts/${notification.postId}`,
+      notifier: notification.notifier,
+      recipients : notification.recipients.length ? notification.recipients : [],
+      notificationContent: notification.notificationContent,
+      type:notification.type,
+      url: `/feed#${notification.postId}`,
     });
-    newNotification.save();
 
-    newNotification.populate({path:'notifier',select:'name avatar _id'})
-    .then(newN => {
-      io.of('/messages_notifications').to(notification.recipients).emit('newNotification',newN);
+
+    let query = notification.recipients.length ?  { _id: { $in: newNotification.recipients } } : {};
+    User.updateMany(query, {
+      $push: { notifications: newNotification }
+    }).then(res => {
+      newNotification.populate({ path: 'notifier', select: 'name avatar _id' })
+        .then(newN => {
+          io.of('/messages_notifications').to(notification.recipients).emit('newNotification', {notification:newN,body:notification.body});
+        })
+
+    }).catch(err => {
+      console.log(err.message);
     })
-    .catch(error => {
-      console.log(error.message);
-    })
-    
+
   })
 });
 /* 

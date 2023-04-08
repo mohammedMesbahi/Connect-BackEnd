@@ -116,6 +116,9 @@ const notificationSchema = new mongoose.Schema({
       ref: "User",
     },
   ],
+  type:{
+    type:String,
+  },
   notificationContent: {
     type: String,
   },
@@ -151,6 +154,7 @@ const userSchema = new mongoose.Schema({
   },
   posts: [postSchema],
   conversations: [conversationSchema],
+  notifications: [notificationSchema],
   following: [{ type: ObjectId, ref: "User" }],
   followers: [{ type: ObjectId, ref: "User" }],
 });
