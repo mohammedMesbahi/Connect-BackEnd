@@ -45,8 +45,8 @@ exports.signup = async (req, res) => {
     await image.write(`./${req.body.avatar}`);
   }
   /* **************** */
-  const { name, email, password, avatar } = req.body;
-  // avatar = avatar.length ? avatar : "/static/images/profile-image.jpg";
+  let { name, email, password, avatar } = req.body;
+  avatar = avatar.length ? avatar : "/static/images/profile-image.jpg";
   try {
     User.create({ name, email, password, avatar })
       .then((user) => {

@@ -157,6 +157,14 @@ const userSchema = new mongoose.Schema({
   notifications: [notificationSchema],
   following: [{ type: ObjectId, ref: "User" }],
   followers: [{ type: ObjectId, ref: "User" }],
+  suspended:{
+    type:Boolean,
+    default:false
+  },
+  checked:{
+    type:Boolean,
+    default:false
+  }
 });
 
 /* **************************************************** schemas *****************************************************/

@@ -13,6 +13,7 @@ process.stdout.write("\u001b[2J\u001b[0;0H");
 require("dotenv").config();
 /* Require our models here so we can use the mongoose.model() singleton to reference our models across our app */
 require("./models/User");
+require("./models/Admin");
 const {
   User,
   Post,
@@ -25,7 +26,7 @@ const {
 } = require("./models/User");
 
 const routes = require("./routes");
-
+const adminRoutes = require('./routes/admin')
 var app = express();
 // env variables
 const dev = process.env.NODE_ENV !== "production";
@@ -76,6 +77,10 @@ app.use((req, res, next) => {
 
 /* apply routes from the "routes" folder */
 app.use("/", routes);
+
+/* apply routes from the "admin" file inside  "routes" folder*/
+app.use("/", adminRoutes);
+
 
 // catch 404 and forward to error handler
 app.use(function (req, res, next) {
