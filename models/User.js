@@ -43,12 +43,17 @@ const commentSchema = new mongoose.Schema({
 });
 
 const postSchema = new mongoose.Schema({
-  owner: ObjectId,
+  owner: {
+    type: ObjectId,
+    ref: "User",
+  },
   caption: {
     type: String,
+    default:undefined
   },
   media: {
     type: String,
+    default:undefined
   },
   reactions: [reactionSchema],
   comments: [commentSchema],

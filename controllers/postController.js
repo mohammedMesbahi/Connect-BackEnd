@@ -36,24 +36,40 @@ exports.resizeImage = async (req, res, next) => {
 
 exports.addPost = async (req, res) => {
   console.log(req.body);
-  if (req.body.caption || req.body.media) {
-    let post = new Post({
+  let post;
+  let postObject;
+
+  if (req.body.caption && req.body.media) {
+    postObject = {
       owner: req.user.id,
-      caption: req.body.caption,
-      media: req.body.media
-    });
-    try {
-      await User.updateOne({ _id: req.user.id }, { $push: { posts: post } });
-      res.send(post);
-    } catch (error) {
-      console.log(error.message);
-      return res.status(500).send({ message: error.message })
+      media: req.body.media,
+      caption: req.body.caption
     }
-  } else {
+  } else if (req.body.caption) {
+    postObject = {
+      owner: req.user.id,
+      caption: req.body.caption
+    }
+  } else if (req.body.media){
+    postObject = {
+      owner: req.user.id,
+      media: req.body.media
+    }
+  }  else {
     return res.status(400).send({ message: "provide at least one field" })
   }
+  try {
+    post = new Post(postObject);
+    await User.updateOne({ _id: req.user.id }, { $push: { posts: post } });
+    await post.populate({ path: 'owner', select: 'name avatar _id' })
+    console.log(post);
+    res.send(post);
+  } catch (error) {
+    console.log(error.message);
+    return res.status(500).send({ message: error.message })
+  }
+} 
 
-};
 
 exports.getPostById = async (req, res, next, id) => {
   checkUser(req);
@@ -246,11 +262,11 @@ exports.deleteComment = async (req, res) => {
     res.status(500).json({ error: "Server error" });
   }
 };
-exports.getComment =  async (req, res) => {
+exports.getComment = async (req, res) => {
   const { id } = req.params;
   console.log(req.params);
   try {
-    const comment = await User.findOne({ 'posts.comments._id': id }, { 'posts.comments.$': 1 }).populate({path:'posts.comments.owner',select:"name email avatar"});
+    const comment = await User.findOne({ 'posts.comments._id': id }, { 'posts.comments.$': 1 }).populate({ path: 'posts.comments.owner', select: "name email avatar" });
     if (!comment) {
       return res.status(404).json({ message: 'Comment not found' });
     }
